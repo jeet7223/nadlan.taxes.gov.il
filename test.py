@@ -1,3 +1,5 @@
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import csv
 import random
 import string
@@ -12,22 +14,19 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-import ai_file
 import configuration
 
 warnings.filterwarnings("ignore")
-download_folder = configuration.captcha_path
+
 options = webdriver.ChromeOptions()
 if configuration.headless_mode:
     options.add_argument('--headless')
-options.add_experimental_option("prefs", {"download.default_directory": download_folder})
-
 
 
 driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 browser = driver
 counter = 1
-
+action = ActionChains(driver)
 driver.get(
     "https://nadlan.taxes.gov.il/svinfonadlan2010/startpageNadlanNewDesign.aspx?ProcessKey=e0fcc9b4-de6f-47a3-8b26-b36cb1fb13ed")
 driver.maximize_window()
@@ -53,58 +52,55 @@ time.sleep(1)
 driver.find_element(By.CLASS_NAME, "mainContent").find_element(By.ID, "txtadHelka").send_keys("10")
 time.sleep(1)
 driver.find_element(By.XPATH, "//select[@name='ctl00$ContentUsersPage$DDLTypeNehes']/option[@value='1']").click()
-time.sleep(3)
+time.sleep(10)
 driver.find_element(By.XPATH, "//select[@name='ctl00$ContentUsersPage$DDLMahutIska']/option[@value='999']").click()
-time.sleep(3)
+time.sleep(7)
 
-
+# Code for Click Search button
+driver.find_element(By.ID, "ContentUsersPage_btnHipus").click()
+time.sleep(1)
+counter = 0
+# Code for Captcha Actions
+try:
+    p = WebDriverWait(driver, 20).until(
+        expected_conditions.presence_of_element_located((By.ID, "ContentUsersPage_dialogCaptcha")))
+    time.sleep(3)
+except TimeoutException:
+    print("Not able to See captcha")
+    driver.quit()
+    sys.exit()
 correct = 1
 
-
-while correct:
-
+driver.find_element(By.ID, 'ContentUsersPage_RadCaptcha1_CaptchaLinkButton').click()
+time.sleep(5)
+try:
     try:
-        # Code for Click Search button
-        driver.find_element(By.ID, "ContentUsersPage_btnHipus").click()
-        time.sleep(1)
-
-        # Code for Captcha Actions
-        try:
-            p = WebDriverWait(driver, 20).until(
-                expected_conditions.presence_of_element_located((By.ID, "ContentUsersPage_dialogCaptcha")))
-            time.sleep(1)
-        except TimeoutException:
-            print("Not able to See captcha")
-            break
-        audio_src = driver.find_element(By.XPATH, '//audio[@preload="auto"]').get_attribute("src")
-        driver.execute_script('''window.open("{}","_blank");'''.format(audio_src))
-        time.sleep(5)
-        try:
-            driver.switch_to.window(driver.window_handles[0])
-            time.sleep(1)
-        except:
-            pass
-        captcha_text = ai_file.getCaptchaText()
-        captcha_input = driver.find_element(By.ID, "ContentUsersPage_dialogCaptcha").find_element(By.XPATH,
-                                                                                  "//input[@id='ContentUsersPage_RadCaptcha1_CaptchaTextBox']")
-        captcha_input.clear()
-        time.sleep(1)
-        captcha_input.send_keys(captcha_text)
-        time.sleep(1)
-        submit_button = driver.find_element(By.ID,'ContentUsersPage_dialogCaptcha').find_element(By.ID, "ContentUsersPage_btnIshur")
-        submit_button.click()
-        try:
-            p = WebDriverWait(driver, 20).until(
-                expected_conditions.presence_of_element_located((By.XPATH, '//table[@class="table_title table table-striped table-bordered table-condensed"]')))
-            break
-        except TimeoutException:
-            print("Wrong Captcha Entered ! Trying Again !")
-
-
+        img_url = driver.find_element(By.ID, "ContentUsersPage_dialogCaptcha").find_element(By.ID,
+                                                                                            "ContentUsersPage_RadCaptcha1_ctl01").find_element(
+            By.TAG_NAME, "img").get_attribute("src")
     except:
-        pass
+        img_url = None
 
-time.sleep(1)
+    captcha_text = input("Please Enter Captcha :- ")
+    time.sleep(2)
+    driver.find_element(By.ID, "ContentUsersPage_dialogCaptcha").find_element(By.XPATH,"//input[@id='ContentUsersPage_RadCaptcha1_CaptchaTextBox']").send_keys(captcha_text)
+    time.sleep(5)
+except:
+    pass
+# Further Code here
+
+driver.find_element(By.ID, "ContentUsersPage_dialogCaptcha").find_element(By.ID, "ContentUsersPage_btnIshur").click()
+
+try:
+    p = WebDriverWait(driver, 20).until(expected_conditions.presence_of_element_located((By.ID, "pageContent")))
+    time.sleep(1)
+except TimeoutException:
+    print("Dont Able to open page")
+    driver.quit()
+    sys.exit()
+
+# code to do everything
+
 try:
     pages_len = driver.find_element(By.XPATH,'//tr[@class="table_title tabelPages"]//table').find_elements(By.TAG_NAME,'td')
     pages_len = len(pages_len)
@@ -395,5 +391,4 @@ for page_index in range(0, pages_len - 1):
     except:
         print("Not Able to click next page button")
 
-#Further Code here
 driver.quit()
